@@ -14,7 +14,7 @@ module FieldMap990
     2 => '990PF'
   }
   FORMTYPE = 'formtype'
-  MAP_COMMON = { # Propublica's basic financial data, common to all 990/990EZ filings; may have missing data
+  MAP_COMMON = { # Propublica's basic financial data, common to all 990/990EZ filings; may have *missing* data
     'ein' => 'EIN',
     'tax_prd_yr' => 'Tax Year',
     'tax_prd' => 'Tax period end',
@@ -24,6 +24,34 @@ module FieldMap990
     'totassetsend' => 'Total assets, end of year',
     'totliabend' => 'Total liabilities, end of year',
     'pct_compnsatncurrofcr' => 'Percent of expenses marked as "Compensation of current officers, directors, etc"'
+  }
+  MAP_990_COMMON = { # Common actual data fields from 990 (i.e. not Propublica's calculated ones)
+    'ein' => 'EIN',
+    'tax_prd_yr' => 'Tax Year',
+    'tax_prd' => 'Tax Period End',
+    FORMTYPE => 'Form Type Filed',
+    'totcntrbgfts' => 'Contributions', # F9_01_REV_CONTR_TOT_CY, F990-PC-PART-01-LINE-08-CY
+    'invstmntinc' => 'Investment Income', # F9_01_REV_INVEST_TOT_CY, F990-PC-PART-01-LINE-10-CY
+    'totprgmrevnue' => 'Program Service Revenue', # F9_01_REV_PROG_TOT_CY, F990-PC-PART-01-LINE-09-CY
+    'totrevenue' => 'Total Revenue', # F9_01_REV_TOT_CY, F990-PC-PART-01-LINE-12-CY
+    'totfuncexpns' => 'Total Expenses', # F9_01_EXP_TOT_CY, F990-PC-PART-01-LINE-18-CY
+    'totassetsend' => 'Total Assets', # F9_01_NAFB_TOT_ASSET_EOY, F990-PC-PART-01-LINE-20-EOY
+    'totliabend' => 'Total Liabilities', # F9_01_NAFB_TOT_LIAB_EOY, F990-PC-PART-01-LINE-21-EOY
+    'totnetassetend' => 'Net Assets' # F9_01_NAFB_TOT_EOY, F990-PC-PART-01-LINE-22-EOY
+  }
+  MAP_990EZ_COMMON = { # Common actual data fields from 990EZ (i.e. not Propublica's calculated ones)
+    'ein' => 'EIN',
+    'tax_prd_yr' => 'Tax Year',
+    'tax_prd' => 'Tax Period End',
+    FORMTYPE => 'Form Type Filed',
+    'totcntrbs' => 'Contributions', # F9_01_REV_CONTR_TOT_CY_V2, F990-EZ-PART-01-LINE-01
+    'othrinvstinc' => 'Investment Income', # F9_01_REV_INVEST_TOT_CY, F990-EZ-PART-01-LINE-04
+    'prgmservrev' => 'Program Service Revenue', # F9_01_REV_PROG_TOT_CY, F990-EZ-PART-01-LINE-02
+    'totrevnue' => 'Total Revenue', # F9_01_REV_TOT_CY, F990-EZ-PART-01-LINE-09
+    'totexpns' => 'Total Expenses', # F9_01_EXP_TOT_CY, F990-EZ-PART-01-LINE-17
+    'totassetsend' => 'Total Assets', # F9_01_NAFB_TOT_ASSET_EOY, F990-EZ-PART-02-LINE-25-EOY
+    'totliabend' => 'Total Liabilities', # F9_01_NAFB_TOT_LIAB_EOY, F990-EZ-PART-02-LINE-26-EOY
+    'totnetassetsend' => 'Net Assets' # F9_01_NAFB_TOT_EOY, F990-EZ-PART-01-LINE-21
   }
   MAP_990 = {
     'ein' => 'Employer Identification Number', # Form 990 Header
@@ -256,5 +284,9 @@ module FieldMap990
     0 => MAP_990,
     1 => MAP_990EZ,
     2 => MAP_990PF
+  }
+  MAP_FORMTYPE_COMMON = {
+    0 => MAP_990_COMMON,
+    1 => MAP_990EZ_COMMON
   }
 end
