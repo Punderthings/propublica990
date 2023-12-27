@@ -28,7 +28,7 @@ module Propublica990
     begin
       return JSON.load(URI.open(PROPUBLICA_APIV2 + ein + PROPUBLICA_APIV2_JSON))
     rescue OpenURI::HTTPError => e
-      puts "HTTPError: fetching #{ein} threw #{e.message}"
+      puts "HTTPError: fetching #{ein} threw: #{e.message}"
       return nil
     end
   end
@@ -75,7 +75,7 @@ module Propublica990
     eins.each do |ein|
       org = get_org(ein, dir, refresh)
       if org.nil? || org.empty?
-        orgs << "ERROR: #{ein} returned nil or empty data"
+        orgs << "ERROR: returned nil or empty data on: #{ein}"
       else
         orgs << org
       end
@@ -112,8 +112,12 @@ module Propublica990
   def flatten_filings(org, fields)
     rows = []
     filings = org[FILINGS]
-    filings.each do |filing|
-      rows << flatten_filing(filing, fields, org[ORGANIZATION][ORG_NAME])
+    if filings.size > 0
+      filings.each do |filing|
+        rows << flatten_filing(filing, fields, org[ORGANIZATION][ORG_NAME])
+      end
+    else
+      puts "WARNING: no filings_with_data for: #{org[ORGANIZATION][EIN]}"
     end
     return rows
   end
@@ -162,8 +166,12 @@ module Propublica990
   def flatten_filings_common(org)
     rows = []
     filings = org[FILINGS]
-    filings.each do |filing|
-      rows << flatten_filing_common(filing, org[ORGANIZATION][ORG_NAME])
+    if filings.size > 0
+      filings.each do |filing|
+        rows << flatten_filing_common(filing, org[ORGANIZATION][ORG_NAME])
+      end
+    else
+      puts "WARNING: no filings_with_data for: #{org[ORGANIZATION]['ein']}"
     end
     return rows
   end
@@ -200,6 +208,6 @@ if __FILE__ == $PROGRAM_NAME
   # puts Propublica990.report_org(ein, dir)
 
   orgs = Propublica990.get_orgs(Propublica990::LOCAL_NEWS, dir)
-  csvfile = File.join(dir, "report-allnews.csv")
-  Propublica990.orgs2csv(orgs, FieldMap990::MAP_COMMON, csvfile)
+  csvfile = File.join(dir, "report-news-common.csv")
+  Propublica990.orgs2csv_common(orgs, csvfile)
 end
