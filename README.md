@@ -24,6 +24,8 @@ As noted in the [ProPublica Nonprofit Explorer API docs](https://www.propublica.
 
 ## More useful IRS 990 analysis tools
 
+Giving Tuesday's [990 Data Infrastructure Project](https://990data.givingtuesday.org/) seems to be the next solution for 990 forms, with a roadmap including comprehensive and normalized databases and tools for all available 990 filings.
+
 [IRSx](http://www.irsx.info/) is a [comprehensive Python toolkit and database](https://github.com/jsfenfen/990-xml-reader/) for grabbing, parsing, and manipulating the full 990 XML structures.
 
 Nonprofit Open Data Collective's [irs990efile](https://github.com/Nonprofit-Open-Data-Collective/irs990efile) R project includes a great [data dictionary mapping fields](https://nonprofit-open-data-collective.github.io/irs990efile/data-dictionary/data-dictionary.html) across 990, EZ, and PF forms. A prior version was called [irs-990-efiler-database](https://github.com/Nonprofit-Open-Data-Collective/irs-990-efiler-database).
