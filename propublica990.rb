@@ -69,21 +69,21 @@ module Propublica990
   end
 
   # Get and cache an array of eins as orgs
-  # @return array of orgs (as hashes); any org with an error returns as a string
+  # @return hash of { ein => { orghash }, ... } where any org with an error returns orghash as a string
   def get_orgs(eins, dir, refresh = false)
-    orgs = []
+    orgs = {}
     eins.each do |ein|
       org = get_org(ein, dir, refresh)
       if org.nil? || org.empty?
-        orgs << "ERROR: returned nil or empty data on: #{ein}"
+        orgs[ein] = "ERROR: returned nil or empty data on: #{ein}"
       else
-        orgs << org
+        orgs[ein] = org
       end
     end
     return orgs
   end
 
-  # Emit a simple string describing the org and recent filings available
+  # Emit a simple hash describing the org and recent filings available
   # TODO Decide on minimal fields useful for comparisons
   def report_org(ein, dir)
     o = get_org(ein, dir)
@@ -99,7 +99,7 @@ module Propublica990
   # @param filing single filings_with_data hash
   # @param fields, fieldname mapping
   # @param id, to use as first value in row (presumably name)
-  # @return array of values from that filing
+  # @return array of values only matching the fields map
   def flatten_filing(filing, fields, id)
     flat = [id]
     fields.each do |field, displayname|
@@ -109,6 +109,9 @@ module Propublica990
   end
 
   # Return flattened list of filings_with_data from an org, plus the name
+  # @param org to process
+  # @param map of fieldnames to process
+  # @return array of arrays of flattened data just for fieldnames
   def flatten_filings(org, fields)
     rows = []
     filings = org[FILINGS]
@@ -123,6 +126,7 @@ module Propublica990
   end
 
   # Transform an array of orgs into a simple csv by ein,year across available data
+  # @param file to write csv to
   def orgs2csv(orgs, fields, file)
     rows = []
     orgs.each do |org|
@@ -143,8 +147,7 @@ module Propublica990
 
   # Return flattened version of a single filing's fields, common only
   #   NOTE: not all common fields are exact same; does not handle PF currently
-  # @param filing single filings_with_data hash
-  # @param fields, fieldname mapping
+  # @param filing one filings_with_data hash
   # @param id, to use as first value in row (presumably name)
   # @return array of values from that filing
   def flatten_filing_common(filing, id)
@@ -176,10 +179,29 @@ module Propublica990
     return rows
   end
 
-  # Transform an array of orgs into a simple csv by ein,year across PC-EZ normalized common data (approximate)
+  # Return latest filing object, or attempt fallback if data not available
+  def get_latest_filing(org, backups)
+    filings = org[FILINGS]
+    filing = filings.first
+    if filing
+      return flatten_filing_common(filing, org[ORGANIZATION][ORG_NAME])
+    elsif backups
+      row = []
+      # Return whatever data is available from backups instead (i.e. manually collected)
+      row << org[ORGANIZATION][ORG_NAME]
+      FieldMap990::MAP_990_COMMON.each do | field, noop |
+        row << (backups[field] ? backups[field] : '')
+      end
+      return row
+    else
+      return nil
+    end
+  end
+
+  # Transform hash of orghashes into a simple csv by ein,year across PC-EZ normalized common data (approximate)
   def orgs2csv_common(orgs, file)
     rows = []
-    orgs.each do |org|
+    orgs.each do |ein, org|
       if org.is_a?(Hash) # Note get_orgs may return error conditions as a String
         orgfilings = flatten_filings_common(org)
         orgfilings.each do |orgfiling|
@@ -202,12 +224,31 @@ end
 # Main method for command line use
 if __FILE__ == $PROGRAM_NAME
   dir = File.join(Dir.pwd, '_data')
+  ein = '460777549' # Bedford Citizen
 
-  # ein = '874640985'
   # org = Propublica990.get_org(ein, dir, true)
   # puts Propublica990.report_org(ein, dir)
 
-  orgs = Propublica990.get_orgs(Propublica990::LOCAL_NEWS, dir)
-  csvfile = File.join(dir, "report-news-common.csv")
-  Propublica990.orgs2csv_common(orgs, csvfile)
+  # orgs = Propublica990.get_orgs(Propublica990::LOCAL_NEWS, dir)
+  # csvfile = File.join(dir, "report-news-common.csv")
+  # Propublica990.orgs2csv_common(orgs, csvfile)
+  backups = {
+    'ein' => ein,
+    'tax_prd_yr' => 'Tax Year',
+    'tax_prd' => 'Tax Period End',
+    'formtype' => 'HACKED data',
+    'totcntrbgfts' => '1234',
+    'invstmntinc' => 0,
+    #'totprgmrevnue' => 'Program Service Revenue',
+    'totrevenue' => '234',
+    'totfuncexpns' => 234,
+    'totassetsend' => '111',
+    'totliabend' => '222',
+    'totnetassetend' => '333'
+  }
+  ein = '920697644'
+  org = Propublica990.get_org(ein, dir, true)
+  filing = Propublica990.get_latest_filing(org, backups)
+  puts JSON.pretty_generate(filing)
+
 end
