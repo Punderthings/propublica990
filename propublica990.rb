@@ -19,10 +19,6 @@ module Propublica990
   ORG_NAME = 'name'
   FILINGS = 'filings_with_data'
 
-  # Newspaper nonprofits to analyze in New England
-  LOCAL_NEWS = %w[871248884	460777549	237246801	874640985	843780597	862407296	834616910	882367192	863807140	920697644	882058638]
-  # FOSS Foundation nonprofits: https://github.com/Punderthings/fossfoundation/tree/main/_foundations taxID field (when is an EIN)
-
   # Fetch an org's data from ProPublica as json hash
   def fetch_org(ein)
     begin
@@ -37,6 +33,10 @@ module Propublica990
   # @return true if we updated the file because any newer filing data found
   def cache_org(ein, file)
     org = fetch_org(ein)
+    if org.nil?
+      # NOTE there's nothing we can do here; Propublica doesn't have any data
+      return false
+    end
     newerdata = true
     if File.exist?(file)
       cache = JSON.load_file(file)
@@ -58,14 +58,19 @@ module Propublica990
   # @param ein as string of entire EIN without dash
   # @param dir as local directory to cache "#{ein}.json" files into
   # @param refresh if true, force a lookup from Propublica for any newer data
-  # @return hash of Propublica Organization object
+  # @return hash of Propublica Organization object; nil if errors
   def get_org(ein, dir, refresh = false)
     file = File.join(dir, "#{ein}.json")
     if refresh or !File.exist?(file)
       Dir.mkdir(dir) unless Dir.exist?(dir)
       unused = cache_org(ein, file)
     end
-    return JSON.load_file(file)
+    if File.exist?(file)
+      return JSON.load_file(file)
+    else
+      puts "ERROR: get_org(#{ein}): No such file or directory #{file}"
+      return nil
+    end
   end
 
   # Get and cache an array of eins as orgs
@@ -148,10 +153,10 @@ module Propublica990
   # Return flattened version of a single filing's fields, common only
   #   NOTE: not all common fields are exact same; does not handle PF currently
   # @param filing one filings_with_data hash
-  # @param id, to use as first value in row (presumably name)
+  # @param org object of the organization itself
   # @return array of values from that filing
-  def flatten_filing_common(filing, id)
-    flat = [id]
+  def flatten_filing_common(filing, org)
+    flat = [org[ORG_NAME], org['city'], org['state']]
     form = filing[FieldMap990::FORMTYPE]
     mapping = FieldMap990::MAP_FORMTYPE_COMMON[form]
     if mapping
@@ -160,7 +165,7 @@ module Propublica990
       end
     else
       # FIXME: how should we report this error?
-      flat << "ERROR: formtype=Private Foundation not supported on: #{id}"
+      flat << "ERROR: formtype(#{form}) not supported with: #{flat}"
     end
    return flat
   end
@@ -171,7 +176,7 @@ module Propublica990
     filings = org[FILINGS]
     if filings.size > 0
       filings.each do |filing|
-        rows << flatten_filing_common(filing, org[ORGANIZATION][ORG_NAME])
+        rows << flatten_filing_common(filing, org[ORGANIZATION])
       end
     else
       puts "WARNING: no filings_with_data for: #{org[ORGANIZATION]['ein']}"
@@ -184,11 +189,13 @@ module Propublica990
     filings = org[FILINGS]
     filing = filings.first
     if filing
-      return flatten_filing_common(filing, org[ORGANIZATION][ORG_NAME])
+      return flatten_filing_common(filing, org[ORGANIZATION])
     elsif backups
       row = []
       # Return whatever data is available from backups instead (i.e. manually collected)
       row << org[ORGANIZATION][ORG_NAME]
+      row << org[ORGANIZATION]['city']
+      row << org[ORGANIZATION]['state']
       FieldMap990::MAP_990_COMMON.each do | field, noop |
         row << (backups[field] ? backups[field] : '')
       end
@@ -212,7 +219,7 @@ module Propublica990
       end
     end
     CSV.open(file, "w", force_quotes: true) do |csv|
-      csv << ['Name', *FieldMap990::MAP_990_COMMON.values]
+      csv << ['Name', 'City', 'State', *FieldMap990::MAP_990_COMMON.values]
       rows.each do |r|
         csv << r
       end
@@ -225,11 +232,8 @@ end
 if __FILE__ == $PROGRAM_NAME
   dir = File.join(Dir.pwd, '_data')
   ein = '460777549' # Bedford Citizen
-
   # org = Propublica990.get_org(ein, dir, true)
   # puts Propublica990.report_org(ein, dir)
-
-  # orgs = Propublica990.get_orgs(Propublica990::LOCAL_NEWS, dir)
   # csvfile = File.join(dir, "report-news-common.csv")
   # Propublica990.orgs2csv_common(orgs, csvfile)
   backups = {
