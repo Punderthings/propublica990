@@ -24,7 +24,7 @@ module Propublica990
     begin
       return JSON.load(URI.open(PROPUBLICA_APIV2 + ein + PROPUBLICA_APIV2_JSON))
     rescue OpenURI::HTTPError => e
-      puts "HTTPError: fetching #{ein} threw: #{e.message}"
+      puts "HTTPError: fetching #{ein} (possibly bad EIN) threw: #{e.message}"
       return nil
     end
   end
@@ -68,7 +68,7 @@ module Propublica990
     if File.exist?(file)
       return JSON.load_file(file)
     else
-      puts "ERROR: get_org(#{ein}): No such file or directory #{file}"
+      puts "ERROR: get_org(#{ein}) Bad EIN or No such file or directory #{file}"
       return nil
     end
   end
@@ -80,7 +80,7 @@ module Propublica990
     eins.each do |ein|
       org = get_org(ein, dir, refresh)
       if org.nil? || org.empty?
-        orgs[ein] = "ERROR: returned nil or empty data on: #{ein}"
+        orgs[ein] = "ERROR: get_orgs(#{ein}...) returned nil or empty data"
       else
         orgs[ein] = org
       end
@@ -125,7 +125,7 @@ module Propublica990
         rows << flatten_filing(filing, fields, org[ORGANIZATION][ORG_NAME])
       end
     else
-      puts "WARNING: no filings_with_data for: #{org[ORGANIZATION][EIN]}"
+      puts "WARNING: flatten_filings(#{org[ORGANIZATION][EIN]}, #{org[ORGANIZATION][ORG_NAME]}) no filings_with_data found."
     end
     return rows
   end
@@ -165,7 +165,7 @@ module Propublica990
       end
     else
       # FIXME: how should we report this error?
-      flat << "ERROR: formtype(#{form}) not supported with: #{flat}"
+      flat << "ERROR: flatten_filing_common(#{flat}) formtype #{form}) not supported."
     end
    return flat
   end
@@ -179,7 +179,7 @@ module Propublica990
         rows << flatten_filing_common(filing, org[ORGANIZATION])
       end
     else
-      puts "WARNING: no filings_with_data for: #{org[ORGANIZATION]['ein']}"
+      puts "WARNING: flatten_filings_common(... #{org[ORGANIZATION]['ein']})  no filings_with_data found."
     end
     return rows
   end
