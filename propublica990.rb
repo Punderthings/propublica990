@@ -18,40 +18,49 @@ module Propublica990
   ORGANIZATION = 'organization'
   ORG_NAME = 'name'
   FILINGS = 'filings_with_data'
+  UPDATED_AT = 'updated_at'
 
   # Fetch an org's data from ProPublica as json hash
+  # @return hash of Propublica Organization object; nil if errors
   def fetch_org(ein)
     begin
       return JSON.load(URI.open(PROPUBLICA_APIV2 + ein + PROPUBLICA_APIV2_JSON))
     rescue OpenURI::HTTPError => e
-      puts "HTTPError: fetching #{ein} (possibly bad EIN) threw: #{e.message}"
+      $stderr.puts "ERROR fetch_org(#{ein}): #{e.full_message}"
       return nil
     end
   end
 
   # Cache org's data in local file
-  # @return true if we updated the file because any newer filing data found
+  # @return true if we updated the file because newer filing data was found
   def cache_org(ein, file)
-    org = fetch_org(ein)
-    if org.nil?
-      # NOTE there's nothing we can do here; Propublica doesn't have any data
+    begin
+      org = fetch_org(ein)
+      if org.nil?
+        # NOTE there's nothing we can do here; Propublica doesn't have any data
+        return false
+      end
+      newerdata = true
+      if File.exist?(file)
+        cache = JSON.load_file(file)
+        newdate = org[FILINGS].map { |i| DateTime.parse(i[UPDATED_AT]) }.max
+        if newdate.nil?
+          newerdata = false # FIXME validate what we want here; maybe check vs. org.updated_at?
+        else
+          cachedate = cache[FILINGS].map { |i| DateTime.parse(i[UPDATED_AT]) }.max
+          newerdata = newdate > cachedate unless cachedate.nil?
+        end
+      end
+      if newerdata
+        File.write(file, JSON.pretty_generate(org))
+        return true
+      else
+        return false
+      end
+    rescue => e
+      $stderr.puts "ERROR cache_org(#{ein}, #{file}): #{e.full_message}"
       return false
     end
-    newerdata = true
-    if File.exist?(file)
-      cache = JSON.load_file(file)
-      newdate = org[FILINGS].map { |i| DateTime.parse(i["updated"]) }.max
-      if newdate.nil?
-        newerdata = false # FIXME validate what we want here; maybe check vs. org.updated_at?
-      else
-        cachedate = cache[FILINGS].map { |i| DateTime.parse(i["updated"]) }.max
-        newerdata = newdate > cachedate unless cachedate.nil?
-      end
-    end
-    if newerdata
-      File.write(file, JSON.pretty_generate(org))
-    end
-    return newerdata
   end
 
   # Get an org's data
@@ -61,6 +70,7 @@ module Propublica990
   # @return hash of Propublica Organization object; nil if errors
   def get_org(ein, dir, refresh = false)
     file = File.join(dir, "#{ein}.json")
+    puts "INFO: get_org(#{ein}, #{dir}, refresh=#{refresh}) file=#{file}"
     if refresh or !File.exist?(file)
       Dir.mkdir(dir) unless Dir.exist?(dir)
       unused = cache_org(ein, file)
@@ -68,21 +78,27 @@ module Propublica990
     if File.exist?(file)
       return JSON.load_file(file)
     else
-      puts "ERROR: get_org(#{ein}) Bad EIN or No such file or directory #{file}"
+      $stderr.puts "ERROR get_org(#{ein}): Bad EIN or No such file or directory #{file}"
       return nil
     end
   end
 
   # Get and cache an array of eins as orgs
   # @return hash of { ein => { orghash }, ... } where any org with an error returns orghash as a string
-  def get_orgs(eins, dir, refresh = false)
+  def get_orgs(eins, d, refresh = false)
     orgs = {}
+    puts "get_orgs() d=#{d} refresh=#{refresh} eins.size=#{eins.size}"
     eins.each do |ein|
-      org = get_org(ein, dir, refresh)
-      if org.nil? || org.empty?
-        orgs[ein] = "ERROR: get_orgs(#{ein}...) returned nil or empty data"
-      else
-        orgs[ein] = org
+      begin
+        org = Propublica990.get_org(ein, d, refresh)
+        if org.nil? || org.empty?
+          orgs[ein] = "ERROR get_orgs(#{ein}...): returned nil or empty data"
+        else
+          orgs[ein] = org
+        end
+      rescue => e
+        $stderr.puts "ERROR get_orgs(#{ein}...): #{e.full_message}"
+        exit 1
       end
     end
     return orgs
