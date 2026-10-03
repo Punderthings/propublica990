@@ -18,7 +18,7 @@ module Propublica990
   ORGANIZATION = 'organization'
   ORG_NAME = 'name'
   FILINGS = 'filings_with_data'
-  UPDATED_AT = 'updated_at'
+  UPDATED_AT = 'updated'
 
   # Fetch an org's data from ProPublica as json hash
   # @return hash of Propublica Organization object; nil if errors
@@ -43,11 +43,11 @@ module Propublica990
       newerdata = true
       if File.exist?(file)
         cache = JSON.load_file(file)
-        newdate = org[FILINGS].map { |i| DateTime.parse(i[UPDATED_AT]) }.max
+        newdate = org[FILINGS].map { |filing| DateTime.parse(filing[UPDATED_AT]) }.max
         if newdate.nil?
           newerdata = false # FIXME validate what we want here; maybe check vs. org.updated_at?
         else
-          cachedate = cache[FILINGS].map { |i| DateTime.parse(i[UPDATED_AT]) }.max
+          cachedate = cache[FILINGS].map { |filing| DateTime.parse(filing[UPDATED_AT]) }.max
           newerdata = newdate > cachedate unless cachedate.nil?
         end
       end
@@ -70,7 +70,6 @@ module Propublica990
   # @return hash of Propublica Organization object; nil if errors
   def get_org(ein, dir, refresh = false)
     file = File.join(dir, "#{ein}.json")
-    puts "INFO: get_org(#{ein}, #{dir}, refresh=#{refresh}) file=#{file}"
     if refresh or !File.exist?(file)
       Dir.mkdir(dir) unless Dir.exist?(dir)
       unused = cache_org(ein, file)
@@ -87,7 +86,6 @@ module Propublica990
   # @return hash of { ein => { orghash }, ... } where any org with an error returns orghash as a string
   def get_orgs(eins, d, refresh = false)
     orgs = {}
-    puts "get_orgs() d=#{d} refresh=#{refresh} eins.size=#{eins.size}"
     eins.each do |ein|
       begin
         org = Propublica990.get_org(ein, d, refresh)
